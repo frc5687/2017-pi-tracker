@@ -28,12 +28,12 @@ public class Main {
     private static double CAMERA_HORIZONTAL_FOV = 62.2;
     private static double CAMERA_VERTICAL_FOV = 48.8;
     private static double CAMERA_ANGLE = 45.00;
-    private static double CAMERA_HEIGHT = 2;
+    private static double CAMERA_HEIGHT = 2.5;
 
     private static double FOCAL = 543.25;
 
-    private static double TARGET_BOTTOM_HEIGHT = 83.5;
-    private static double TARGET_HEIGHT = 14;
+    private static double TARGET_BOTTOM_HEIGHT = 10.75;
+    private static double TARGET_HEIGHT = 5;
     private static double TARGET_WIDTH = 20;
 
     public static final int piPort = 27002;
