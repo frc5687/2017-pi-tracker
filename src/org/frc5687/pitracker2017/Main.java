@@ -27,7 +27,7 @@ import static org.opencv.videoio.Videoio.CV_CAP_PROP_FRAME_WIDTH;
 public class Main {
     private static double CAMERA_HORIZONTAL_FOV = 62.2;
     private static double CAMERA_VERTICAL_FOV = 48.8;
-    private static double CAMERA_ANGLE = 45.00;
+    private static double CAMERA_ANGLE = 0.00;
     private static double CAMERA_HEIGHT = 2.5;
 
     private static double FOCAL = 543.25;
