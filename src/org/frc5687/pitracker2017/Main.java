@@ -1,6 +1,7 @@
 package org.frc5687.pitracker2017;
 
 
+import com.sun.javafx.font.directwrite.RECT;
 import org.opencv.core.*;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
@@ -39,81 +40,28 @@ public class Main {
     public static final int piPort = 27002;
     public static final int rioPort = 27001;
 
+    static int camPort = 0;
+    static Double exposure = null;
+    static String team = "5687";
+    static String address = null;
+    static boolean logging = false;
+    static boolean images = false;
+    static String file = null;
+
+    static final String root = "C:\\Users\\Ben Bernard\\Documents\\FRC\\FRC 2017\\workspace\\images\\Good\\";
+
     public static void main(String[] args) {
-        int camPort = 0;
-        Double exposure = null;
-        String team = "5687";
-        String address = null;
-        boolean logging = false;
-        boolean images = false;
         int rX = 0;
         int rY = 0;
-
         double fX = 0;
         double fY = 0;
 
         long startMills = Instant.now().toEpochMilli();
 
-        for (String arg : args) {
-            String[] a = arg.toLowerCase().split("=");
-            if (a.length == 2) {
-                switch (a[0]) {
-                    case "cam":
-                    case "camera":
-                    case "c":
-                        try {
-                            camPort = Integer.parseInt(a[1]);
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                        break;
-                    case "exposure":
-                    case "exp":
-                    case "e":
-                        try {
-                            exposure = Double.parseDouble(a[1]);
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                        break;
-                    case "team":
-                        try {
-                            team = a[1];
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                        break;
-                    case "logging":
-                    case "logs":
-                    case "log":
-                    case "l":
-                        try {
-                            logging = a[1].equals("on") || a[1].equals("yes") || a[1].equals("true");
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                        break;
-                    case "images":
-                    case "i":
-                        try {
-                            images = a[1].equals("on") || a[1].equals("yes") || a[1].equals("true");
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                        break;
-                    case "address":
-                    case "addr":
-                    case "a":
-                        try {
-                            address = a[1];
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                        break;
-                }
-            }
-        }
+        // Parse the parameters...
+        parseParameters(args);
 
+        // Confirm the parameters
         System.out.println(String.format("Camera port set to %1$d", camPort));
         if (team!=null) {
             System.out.println(String.format("Team set to %1$s", team));
@@ -126,14 +74,18 @@ public class Main {
         }
         System.out.println(String.format("Address set to %1$s", address));
 
+        // Connect to the rio via the RobotProxy...
         RobotProxy robot = new RobotProxy(address, piPort, rioPort);
 
+        // Tell the rio we're here!!!
+        // This tells the rio where to send heartbeats
         robot.Send(0, false, 0, 0);
 
         // Initialize OpenCV
         System.out.println("Loading OpenCV...");
+
         // Load the native library.
-        System.loadLibrary("opencv_java310");
+        System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
 
         System.out.println("Initializing camera...");
         VideoCapture camera = new VideoCapture(0);
@@ -166,11 +118,13 @@ public class Main {
 
 
         long folderNumber = 1;
-
         String prefix = "./";
+
+        // Setup the image logging folder
         if (images) {
             while (true) {
                 prefix = "/home/pi/images/" + folderNumber;
+                // prefix = "C:\\Users\\Ben Bernard\\Documents\\FRC\\FRC 2017\\workspace\\images\\Good\\";
                 File imageDir = new File(prefix);
                 if (!imageDir.exists()) {
                     imageDir.mkdir();
@@ -240,10 +194,14 @@ public class Main {
             long rioMillis = 0;
             rioMillis = robot.getRobotTimestamp();
 
-            if (robot.isRinglighton()) {
+            if (file!=null || robot.isRinglighton()) {
 
                 // Capture a frame and write to disk
-                camera.read(frame);
+                if (file==null) {
+                    camera.read(frame);
+                } else {
+                    frame = Imgcodecs.imread(file);
+                }
                 if (rX != frame.width()) {
                     rX = frame.width();
                     fX = getFocalLength(rX, CAMERA_HORIZONTAL_FOV);
@@ -256,7 +214,7 @@ public class Main {
                 }
 
                 if (images) {
-                    Imgcodecs.imwrite(prefix + "    a_bgr_" + mills + ".png", frame, minCompressionParam);
+                    Imgcodecs.imwrite(prefix + "a_bgr_" + mills + ".png", frame, minCompressionParam);
                 }
 
                 if (first) {
@@ -289,33 +247,39 @@ public class Main {
                 contours.removeIf(contour -> contour.height() > contour.width() * 1.5 && contour.height() < contour.width() * 3);
 
                 if (contours.size() >= 2) {
+
+                    // Sort the contours by size...
                     SortContours(contours);
-                    Rect leftRect = Imgproc.boundingRect(contours.get(0));
-                    Rect rightRect = Imgproc.boundingRect(contours.get(1));
 
-                    if (rightRect.x < leftRect.x) {
-                        Rect swap = rightRect;
-                        rightRect = leftRect;
-                        leftRect = swap;
-                    }
+                    Rect rectA = Imgproc.boundingRect(contours.get(0));
+                    Rect rectB = Imgproc.boundingRect(contours.get(1));
 
-                    Rect rect = new Rect(leftRect.x, leftRect.y, rightRect.x - leftRect.x + rightRect.width, leftRect.height);
+                    // And find the bounding rectangle for the two largest...
+                    Rect rect = findBoundingRect(rectA, rectB);
 
-                    // And its center point
-                    final double cx = rect.x + (rect.width / 2) - (rX / 2);
-                    final double cy = -1 * (rect.y + (rect.height / 2) - (rY / 2));
+                    // Now find its center point
+                    final double vcx = rect.x + (rect.width/2);
+                    final double vcy = rect.y + (rect.height/2);
+
+                    final double cx = vcx - (rX / 2);
+                    final double cy = -1 * (vcy - (rY / 2));
 
                     if (images) {
                         // Copy the frame to the cont mat
                         filtered.copyTo(cont);
 
-                        // Draw the
-                        rectangle(cont, leftRect.tl(), leftRect.br(), new Scalar(255, 0, 0), 2, 8, 0);
-                        rectangle(cont, rightRect.tl(), rightRect.br(), new Scalar(0, 0, 255), 2, 8, 0);
-                        rectangle(cont, leftRect.tl(), rightRect.br(), new Scalar(0, 255, 0), 4, 8, 0);
 
-                        circle(cont, new Point(cx, cy), 2, new Scalar(255, 255, 255), 1, 8, 0);
+                        // Draw the two contours:
+                        rectangle(cont, rectA.tl(), rectA.br(), new Scalar(128, 128, 128), 2, 8, 0);
+                        rectangle(cont, rectB.tl(), rectB.br(), new Scalar(128, 128, 128), 2, 8, 0);
 
+                        // Draw the bounding rectangle
+                        rectangle(cont, rect.tl(), rect.br(), new Scalar(255, 255, 255), 4, 8, 0);
+
+                        // Draw the pin in the center
+                        circle(cont, new Point(vcx, vcy), 2, new Scalar(200, 255, 200), 1, 8, 0);
+
+                        // Write it to the card
                         Imgcodecs.imwrite(prefix + "d_con_" + mills + ".png", cont, minCompressionParam);
 
                     }
@@ -335,6 +299,7 @@ public class Main {
                     final double distance = getDistance(verticalAngle);
 
 
+                    // Send the results to the rio
                     robot.Send(rioMillis, true, offsetAngle, distance);
 
 
@@ -343,35 +308,7 @@ public class Main {
                     }
 
                     if (images) {
-                        try {
-                            //create a temporary file
-                            File logFile = new File(prefix + "e_log_" + mills + ".txt");
-
-                            BufferedWriter writer = new BufferedWriter(new FileWriter(logFile));
-                            writer.write("");
-                            writer.write("Mills: " + mills);
-                            writer.newLine();
-                            writer.write("TargetSighted: true");
-                            writer.newLine();
-                            writer.write("TargetSighting: Sighted");
-                            writer.newLine();
-                            writer.write("width: " + width);
-                            writer.newLine();
-                            writer.write("height: " + rect.height);
-                            writer.newLine();
-                            writer.write("centerX: " + cx);
-                            writer.newLine();
-                            writer.write("centerY: " + cy);
-                            writer.newLine();
-                            writer.write("offsetAngle: " + offsetAngle);
-                            writer.newLine();
-                            writer.write("distance: " + distance);
-                            writer.newLine();
-                            //Close writer
-                            writer.close();
-                        } catch (Exception e) {
-
-                        }
+                        logFrame(prefix, mills, width, height, cx, cy, offsetAngle, distance);
                     }
 
                 } else {
@@ -381,25 +318,7 @@ public class Main {
                     }
 
                     if (images) {
-                        try {
-                            //create a temporary file
-                            File logFile = new File(prefix + "d_log_" + mills + ".txt");
-
-                            BufferedWriter writer = new BufferedWriter(new FileWriter(logFile));
-                            writer.write("");
-                            writer.write("Mills: " + mills);
-                            writer.newLine();
-                            writer.write("TargetSighted: false");
-                            writer.newLine();
-                            writer.write("TargetSighting: Absent");
-                            writer.newLine();
-                            writer.write("Log: " + log.toString());
-                            writer.newLine();
-                            //Close writer
-                            writer.close();
-                        } catch (Exception e) {
-
-                        }
+                        logFrame(prefix, mills, log.toString());
                     }
 
                 }
@@ -414,6 +333,150 @@ public class Main {
                 }
             } catch (Exception e) {
             }
+        }
+
+    }
+
+    /**
+     * Parses the parameters of the pi tracker
+     * @param args The list of arguments to parse
+     */
+    private static void parseParameters(String[] args) {
+        for (String arg : args) {
+            String[] a = arg.toLowerCase().split("=");
+            if (a.length == 2) {
+                switch (a[0]) {
+                    case "cam":
+                    case "camera":
+                    case "c":
+                        try {
+                            camPort = Integer.parseInt(a[1]);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                        break;
+                    case "exposure":
+                    case "exp":
+                    case "e":
+                        try {
+                            exposure = Double.parseDouble(a[1]);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                        break;
+                    case "team":
+                        try {
+                            team = a[1];
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                        break;
+                    case "logging":
+                    case "logs":
+                    case "log":
+                    case "l":
+                        try {
+                            logging = a[1].equals("on") || a[1].equals("yes") || a[1].equals("true");
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                        break;
+                    case "images":
+                    case "i":
+                        try {
+                            images = a[1].equals("on") || a[1].equals("yes") || a[1].equals("true");
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                        break;
+                    case "address":
+                    case "addr":
+                    case "a":
+                        try {
+                            address = a[1];
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                        break;
+                    case "file":
+                    case "f":
+                        try {
+                            file = a[1];
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                        break;
+                }
+            }
+        }
+    }
+
+
+    /**
+     * Finds the rectangle that bounds two rectangles
+     * @param a One rectangle to find the bounds of
+     * @param b The other rectangle to find the bounds of
+     * @return The bounding rectangle
+     */
+    private static Rect findBoundingRect(Rect a, Rect b) {
+        int top = Math.min(a.y, b.y);
+        int bottom =  Math.max(a.y + a.height, b.y + b.height);
+        int left = Math.min(a.x, b.x);
+        int right = Math.max(a.x + a.width, b.x + b.width);
+
+        return new Rect(left, top, right - left, bottom - top);
+    }
+
+
+    private static void logFrame(String prefix, long mills, double width, double height, double cx, double cy, double offsetAngle, double distance) {
+        try {
+            //create a temporary file
+            File logFile = new File(prefix + "e_log_" + mills + ".txt");
+
+            BufferedWriter writer = new BufferedWriter(new FileWriter(logFile));
+            writer.write("");
+            writer.write("Mills: " + mills);
+            writer.newLine();
+            writer.write("TargetSighted: true");
+            writer.newLine();
+            writer.write("TargetSighting: Sighted");
+            writer.newLine();
+            writer.write("width: " + width);
+            writer.newLine();
+            writer.write("height: " + height);
+            writer.newLine();
+            writer.write("centerX: " + cx);
+            writer.newLine();
+            writer.write("centerY: " + cy);
+            writer.newLine();
+            writer.write("offsetAngle: " + offsetAngle);
+            writer.newLine();
+            writer.write("distance: " + distance);
+            writer.newLine();
+            //Close writer
+            writer.close();
+        } catch (Exception e) {
+
+        }
+    }
+
+    private static void logFrame(String prefix, long mills, String log) {
+        try {
+            File logFile = new File(prefix + "e_log_" + mills + ".txt");
+
+            BufferedWriter writer = new BufferedWriter(new FileWriter(logFile));
+            writer.write("");
+            writer.write("Mills: " + mills);
+            writer.newLine();
+            writer.write("TargetSighted: false");
+            writer.newLine();
+            writer.write("TargetSighting: Absent");
+            writer.newLine();
+            writer.write("Log: " + log.toString());
+            writer.newLine();
+            //Close writer
+            writer.close();
+        } catch (Exception e) {
         }
 
     }
