@@ -289,11 +289,11 @@ public class Main {
                     final int height = rect.height;
 
                     // Find the lateral offset angle
-                    final double offsetAngle = getAngle(cx);
+                    final double offsetAngle = getAngle(cx, fX);
 
 
                     // Now find the vertical angle
-                    final double verticalAngle = getAngle(cy);
+                    final double verticalAngle = getAngle(cy, fY);
 
                     // From that, determine the distance to the target
                     final double distance = getDistance(verticalAngle);
@@ -492,8 +492,8 @@ public class Main {
         return imageSize / (2 * Math.tan(fovRads/2));
     }
 
-    private static double getAngle(double centerX) {
-        return Math.atan(centerX/FOCAL) * 180 / Math.PI;
+    private static double getAngle(double center, double focal) {
+        return Math.atan(center/focal) * 180 / Math.PI;
     }
 
     private static double getDistance(double verticalAngle) {
