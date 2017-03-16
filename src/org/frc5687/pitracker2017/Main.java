@@ -13,12 +13,10 @@ import java.io.FileWriter;
 import java.net.*;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.Enumeration;
 import java.util.List;
 
 import static org.opencv.imgproc.Imgproc.circle;
-import static org.opencv.imgproc.Imgproc.initWideAngleProjMap;
 import static org.opencv.imgproc.Imgproc.rectangle;
 import static org.opencv.imgproc.Imgproc.contourArea;
 import static org.opencv.videoio.Videoio.CAP_PROP_EXPOSURE;
@@ -28,7 +26,7 @@ import static org.opencv.videoio.Videoio.CV_CAP_PROP_FRAME_WIDTH;
 public class Main {
     private static double CAMERA_HORIZONTAL_FOV = 62.2;
     private static double CAMERA_VERTICAL_FOV = 48.8;
-    private static double CAMERA_ANGLE = 0.00;
+    private static double CAMERA_ANGLE = 10.00;
     private static double CAMERA_HEIGHT = 2.5;
 
     private static double FOCAL = 543.25;
@@ -47,8 +45,6 @@ public class Main {
     static boolean logging = false;
     static boolean images = false;
     static String file = null;
-
-    static final String root = "C:\\Users\\Ben Bernard\\Documents\\FRC\\FRC 2017\\workspace\\images\\Good\\";
 
     public static void main(String[] args) {
         int rX = 0;
@@ -193,6 +189,10 @@ public class Main {
             long mills = Instant.now().toEpochMilli() - startMills;
             long rioMillis = 0;
             rioMillis = robot.getRobotTimestamp();
+            if (rioMillis==0) {
+                // Keep trying to contact the robot...
+                robot.Send(0, false, 0, 0);
+            }
 
             if (file!=null || robot.isRinglighton()) {
 
@@ -266,7 +266,7 @@ public class Main {
 
                     if (images) {
                         // Copy the frame to the cont mat
-                        filtered.copyTo(cont);
+                        frame.copyTo(cont);
 
 
                         // Draw the two contours:
@@ -333,7 +333,9 @@ public class Main {
                 }
             } catch (Exception e) {
             }
+            if (file!=null) { return; }
         }
+
 
     }
 
