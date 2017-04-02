@@ -66,7 +66,7 @@ public class Main {
         System.out.println(String.format("Images set to %1$b", images));
 
         if (address==null && team!=null) {
-            address = String.format("roboRIO-%1$s-FRC.local", team);
+            address =  "10.56.87.2";// String.format("roboRIO-%1$s-FRC.local", team);
         }
         System.out.println(String.format("Address set to %1$s", address));
 
