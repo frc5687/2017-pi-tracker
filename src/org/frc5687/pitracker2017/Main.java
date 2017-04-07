@@ -244,7 +244,7 @@ public class Main {
                 Imgproc.findContours(filtered, contours, cont, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
 
                 // Look for contours that are roughly twice as tall as they are wide
-                contours.removeIf(contour -> contour.height() > contour.width() * 1.5 && contour.height() < contour.width() * 3);
+                contours.removeIf(contour -> contour.height() > (contour.width() * 1.5) || contour.height() < (contour.width() * 3));
 
                 if (contours.size() >= 2) {
 
