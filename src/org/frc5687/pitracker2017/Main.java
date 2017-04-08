@@ -52,7 +52,7 @@ public class Main {
         double fX = 0;
         double fY = 0;
 
-        long startMills = Instant.now().toEpochMilli();
+        long startMills = System.currentTimeMillis();
 
         // Parse the parameters...
         parseParameters(args);
@@ -186,7 +186,8 @@ public class Main {
 
         while (true) {
             StringBuilder log = new StringBuilder();
-            long mills = Instant.now().toEpochMilli() - startMills;
+            long loopMillis = System.currentTimeMillis();
+            long mills = loopMillis - startMills;
             long rioMillis = 0;
             rioMillis = robot.getRobotTimestamp();
             if (rioMillis==0) {
@@ -243,16 +244,51 @@ public class Main {
                 List<MatOfPoint> contours = new ArrayList<MatOfPoint>();
                 Imgproc.findContours(filtered, contours, cont, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
 
-                // Look for contours that are roughly twice as tall as they are wide
-                contours.removeIf(contour -> Imgproc.boundingRect(contour).height < (Imgproc.boundingRect(contour).width * 1.5) || Imgproc.boundingRect(contour).height > (Imgproc.boundingRect(contour).width * 3));
+                int cmax = contours.size();
+                Rect rectA = null;
+                Rect rectB = null;
+                int sizeA = 0;
+                int sizeB = 0;
 
-                if (contours.size() >= 2) {
+                for(int i = 0; i < cmax; i++) {
+                    MatOfPoint contour = contours.get(i);
+                    Rect rect = Imgproc.boundingRect(contour);
 
-                    // Sort the contours by size...
-                    SortContours(contours);
+                    int width = rect.width;
+                    int height = rect.height;
 
-                    Rect rectA = Imgproc.boundingRect(contours.get(0));
-                    Rect rectB = Imgproc.boundingRect(contours.get(1));
+                    if (height > width * 3) {
+                        continue; // Too tall!
+                    }
+                    if (height < width * 1.5) {
+                        continue; // Too short
+                    }
+
+                    int size = width * height;
+
+
+                    if (size < 50) {
+                        continue; // Too small!
+                    }
+
+                    if (rectA == null) {
+                        rectA = rect;
+                        sizeA = size;
+                    } else if (size > sizeA) {
+                        rectB = rectA;
+                        sizeB = sizeA;
+                        rectA = rect;
+                        sizeA = size;
+                    } else if (rectB == null) {
+                        rectB = rect;
+                        sizeB = size;
+                    } else if (size > sizeB) {
+                        rectB = rect;
+                        sizeB = size;
+                    }
+                }
+
+                if (rectB!=null) {
 
                     // And find the bounding rectangle for the two largest...
                     Rect rect = findBoundingRect(rectA, rectB);
@@ -270,10 +306,10 @@ public class Main {
 
 
                         // Draw the two contours:
-                        for (MatOfPoint m : contours) {
-                            Rect brect = Imgproc.boundingRect(m);
-                            rectangle(cont, brect.tl(), brect.br(), new Scalar(128, 128, 0), 2, 8, 0);
-                        }
+                        //for (MatOfPoint m : contours) {
+                        //    Rect brect = Imgproc.boundingRect(m);
+                        //    rectangle(cont, brect.tl(), brect.br(), new Scalar(128, 128, 0), 2, 8, 0);
+                        //}
                         rectangle(cont, rectA.tl(), rectA.br(), new Scalar(0, 255, 0), 2, 8, 0);
                         rectangle(cont, rectB.tl(), rectB.br(), new Scalar(0, 255, 0), 2, 8, 0);
 
@@ -337,6 +373,7 @@ public class Main {
                 }
             } catch (Exception e) {
             }
+            // long runMillis = System.currentTimeMillis() - loopMillis;
             if (file!=null) { return; }
         }
 
