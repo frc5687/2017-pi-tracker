@@ -244,7 +244,7 @@ public class Main {
                 Imgproc.findContours(filtered, contours, cont, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
 
                 // Look for contours that are roughly twice as tall as they are wide
-                contours.removeIf(contour -> contour.height() > (contour.width() * 1.5) || contour.height() < (contour.width() * 3));
+                contours.removeIf(contour -> Imgproc.boundingRect(contour).height < (Imgproc.boundingRect(contour).width * 1.5) || Imgproc.boundingRect(contour).height > (Imgproc.boundingRect(contour).width * 3));
 
                 if (contours.size() >= 2) {
 
@@ -270,8 +270,12 @@ public class Main {
 
 
                         // Draw the two contours:
-                        rectangle(cont, rectA.tl(), rectA.br(), new Scalar(128, 128, 128), 2, 8, 0);
-                        rectangle(cont, rectB.tl(), rectB.br(), new Scalar(128, 128, 128), 2, 8, 0);
+                        for (MatOfPoint m : contours) {
+                            Rect brect = Imgproc.boundingRect(m);
+                            rectangle(cont, brect.tl(), brect.br(), new Scalar(128, 128, 0), 2, 8, 0);
+                        }
+                        rectangle(cont, rectA.tl(), rectA.br(), new Scalar(0, 255, 0), 2, 8, 0);
+                        rectangle(cont, rectB.tl(), rectB.br(), new Scalar(0, 255, 0), 2, 8, 0);
 
                         // Draw the bounding rectangle
                         rectangle(cont, rect.tl(), rect.br(), new Scalar(255, 255, 255), 4, 8, 0);
