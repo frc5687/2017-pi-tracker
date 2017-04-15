@@ -279,6 +279,9 @@ public class Main {
                 //    Imgcodecs.imwrite(prefix + "b_hls_" + mills + ".png", hls, minCompressionParam);
                 //}
 
+                hlsConversionTimeTotal += System.currentTimeMillis() - individualBeginTime;
+                individualBeginTime = System.currentTimeMillis();
+
                 // Filter using HLS lower and upper range
                 Scalar lower = new Scalar(lowerH, lowerL, lowerS, 0);
                 Scalar upper = new Scalar(upperH, upperL, upperS, 0);
@@ -288,7 +291,7 @@ public class Main {
                     Imgcodecs.imwrite(prefix + "c_flt_" + mills + ".png", filtered, minCompressionParam);
                 }
 
-                contourTimeTotal += System.currentTimeMillis() - individualBeginTime;
+                hlsFilterTimeTotal += System.currentTimeMillis() - individualBeginTime;
                 individualBeginTime = System.currentTimeMillis();
 
                 // Find the contours...
