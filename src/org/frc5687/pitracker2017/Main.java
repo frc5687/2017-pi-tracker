@@ -185,17 +185,41 @@ public class Main {
         ContourComparator comparator = new ContourComparator();
 
         // time counting
-        long totalBeginTime = 0;
-        long individualBeginTIme = 0;
+        long beginSecondTime;
+        long totalBeginTime;
+        long individualBeginTime;
         long timeTotal = 0;
         long captureTimeTotal = 0;
-        long hlsTimeTotal = 0;
+        long hlsConversionTimeTotal = 0;
+        long hlsFilterTimeTotal = 0;
         long contourTimeTotal = 0;
-        long mathTimeTotal = 0;
-        long logTimeTotal = 0;
+        long contourFilterTimeTotal = 0;
         int count;
 
+        beginSecondTime = System.currentTimeMillis();
+        count = 0;
+
         while (true) {
+            totalBeginTime = System.currentTimeMillis();
+
+            if (System.currentTimeMillis()>= beginSecondTime + 1000) {
+                System.out.println("Total Cycle Time: " + (timeTotal / count));
+                System.out.println("Capture Frame Time: " + (captureTimeTotal / count));
+                System.out.println("HLS Conversion Time: " + (hlsConversionTimeTotal / count));
+                System.out.println("HLS Filtering Time: " + (hlsFilterTimeTotal / count));
+                System.out.println("Contour Time: " + (contourTimeTotal / count));
+                System.out.println("Contour Filtering: " + (contourFilterTimeTotal / count));
+
+                timeTotal = 0;
+                hlsConversionTimeTotal = 0;
+                hlsFilterTimeTotal = 0;
+                contourTimeTotal = 0;
+                contourFilterTimeTotal = 0;
+                count = 0;
+
+                beginSecondTime = System.currentTimeMillis();
+            }
+
             StringBuilder log = new StringBuilder();
             long loopMillis = System.currentTimeMillis();
             long mills = loopMillis - startMills;
@@ -205,6 +229,8 @@ public class Main {
                 // Keep trying to contact the robot...
                 robot.Send(0, false, 0, 0);
             }
+
+            individualBeginTime = System.currentTimeMillis();
 
             if (file!=null || robot.isRinglighton()) {
 
@@ -236,6 +262,9 @@ public class Main {
                     first = false;
                 }
 
+                captureTimeTotal += System.currentTimeMillis() - individualBeginTime;
+                individualBeginTime = System.currentTimeMillis();
+
                 // Convert to HLS color model
                 Imgproc.cvtColor(frame, hls, Imgproc.COLOR_BGR2HLS);
                 //if (images) {
@@ -250,6 +279,9 @@ public class Main {
                 if (images) {
                     Imgcodecs.imwrite(prefix + "c_flt_" + mills + ".png", filtered, minCompressionParam);
                 }
+
+                contourTimeTotal += System.currentTimeMillis() - individualBeginTime;
+                individualBeginTime = System.currentTimeMillis();
 
                 // Find the contours...
                 List<MatOfPoint> contours = new ArrayList<MatOfPoint>();
@@ -299,8 +331,9 @@ public class Main {
                     }
                 }
 
-                if (rectB!=null) {
+                contourTimeTotal += System.currentTimeMillis() - individualBeginTime;
 
+                if (rectB!=null) {
                     // And find the bounding rectangle for the two largest...
                     Rect rect = findBoundingRect(rectA, rectB);
 
@@ -391,6 +424,9 @@ public class Main {
             }
             // long runMillis = System.currentTimeMillis() - loopMillis;
             if (file!=null) { return; }
+
+            count ++;
+            timeTotal += System.currentTimeMillis() - totalBeginTime;
         }
 
 
