@@ -220,7 +220,9 @@ public class Main {
 
                 timeTotal = 0;
                 hlsConversionTimeTotal = 0;
+                captureTimeTotal = 0;
                 hlsFilterTimeTotal = 0;
+                hlsConversionTimeTotal = 0;
                 contourTimeTotal = 0;
                 contourFilterTimeTotal = 0;
                 count = 0;
@@ -248,6 +250,9 @@ public class Main {
                 } else {
                     frame = Imgcodecs.imread(file);
                 }
+
+                captureTimeTotal += System.currentTimeMillis() - individualBeginTime;
+
                 if (rX != frame.width()) {
                     rX = frame.width();
                     fX = getFocalLength(rX, CAMERA_HORIZONTAL_FOV);
@@ -270,7 +275,6 @@ public class Main {
                     first = false;
                 }
 
-                captureTimeTotal += System.currentTimeMillis() - individualBeginTime;
                 individualBeginTime = System.currentTimeMillis();
 
                 // Convert to HLS color model
@@ -297,6 +301,9 @@ public class Main {
                 // Find the contours...
                 List<MatOfPoint> contours = new ArrayList<MatOfPoint>();
                 Imgproc.findContours(filtered, contours, cont, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
+
+                contourTimeTotal += System.currentTimeMillis() - individualBeginTime;
+                individualBeginTime = System.currentTimeMillis();
 
                 int cmax = contours.size();
                 Rect rectA = null;
@@ -342,7 +349,7 @@ public class Main {
                     }
                 }
 
-                contourTimeTotal += System.currentTimeMillis() - individualBeginTime;
+                contourFilterTimeTotal += System.currentTimeMillis() - individualBeginTime;
 
                 if (rectB!=null) {
                     // And find the bounding rectangle for the two largest...
