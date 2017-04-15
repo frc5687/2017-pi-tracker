@@ -52,7 +52,7 @@ public class Main {
         double fX = 0;
         double fY = 0;
 
-        long startMills = Instant.now().toEpochMilli();
+        long startMills = System.currentTimeMillis();
 
         // Parse the parameters...
         parseParameters(args);
@@ -66,7 +66,7 @@ public class Main {
         System.out.println(String.format("Images set to %1$b", images));
 
         if (address==null && team!=null) {
-            address = String.format("roboRIO-%1$s-FRC.local", team);
+            address =  String.format("roboRIO-%1$s-FRC.local", team);
         }
         System.out.println(String.format("Address set to %1$s", address));
 
@@ -99,10 +99,10 @@ public class Main {
             System.out.println("Camera connected!");
         }
 
-        if (!camera.set(CV_CAP_PROP_FRAME_WIDTH, 640)){
+        if (!camera.set(CV_CAP_PROP_FRAME_WIDTH, 320)){
             System.out.println("Unable to set frame width!");
         }
-        if (!camera.set(CV_CAP_PROP_FRAME_HEIGHT, 480)){
+        if (!camera.set(CV_CAP_PROP_FRAME_HEIGHT, 240)){
             System.out.println("Unable to set frame height!");
         }
 
@@ -197,7 +197,8 @@ public class Main {
 
         while (true) {
             StringBuilder log = new StringBuilder();
-            long mills = Instant.now().toEpochMilli() - startMills;
+            long loopMillis = System.currentTimeMillis();
+            long mills = loopMillis - startMills;
             long rioMillis = 0;
             rioMillis = robot.getRobotTimestamp();
             if (rioMillis==0) {
@@ -254,16 +255,51 @@ public class Main {
                 List<MatOfPoint> contours = new ArrayList<MatOfPoint>();
                 Imgproc.findContours(filtered, contours, cont, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
 
-                // Look for contours that are roughly twice as tall as they are wide
-                contours.removeIf(contour -> contour.height() > contour.width() * 1.5 && contour.height() < contour.width() * 3);
+                int cmax = contours.size();
+                Rect rectA = null;
+                Rect rectB = null;
+                int sizeA = 0;
+                int sizeB = 0;
 
-                if (contours.size() >= 2) {
+                for(int i = 0; i < cmax; i++) {
+                    MatOfPoint contour = contours.get(i);
+                    Rect rect = Imgproc.boundingRect(contour);
 
-                    // Sort the contours by size...
-                    SortContours(contours);
+                    int width = rect.width;
+                    int height = rect.height;
 
-                    Rect rectA = Imgproc.boundingRect(contours.get(0));
-                    Rect rectB = Imgproc.boundingRect(contours.get(1));
+                    if (height > width * 3) {
+                        continue; // Too tall!
+                    }
+                    if (height < width * 1.5) {
+                        continue; // Too short
+                    }
+
+                    int size = width * height;
+
+
+                    if (size < 50) {
+                        continue; // Too small!
+                    }
+
+                    if (rectA == null) {
+                        rectA = rect;
+                        sizeA = size;
+                    } else if (size > sizeA) {
+                        rectB = rectA;
+                        sizeB = sizeA;
+                        rectA = rect;
+                        sizeA = size;
+                    } else if (rectB == null) {
+                        rectB = rect;
+                        sizeB = size;
+                    } else if (size > sizeB) {
+                        rectB = rect;
+                        sizeB = size;
+                    }
+                }
+
+                if (rectB!=null) {
 
                     // And find the bounding rectangle for the two largest...
                     Rect rect = findBoundingRect(rectA, rectB);
@@ -281,8 +317,12 @@ public class Main {
 
 
                         // Draw the two contours:
-                        rectangle(cont, rectA.tl(), rectA.br(), new Scalar(128, 128, 128), 2, 8, 0);
-                        rectangle(cont, rectB.tl(), rectB.br(), new Scalar(128, 128, 128), 2, 8, 0);
+                        //for (MatOfPoint m : contours) {
+                        //    Rect brect = Imgproc.boundingRect(m);
+                        //    rectangle(cont, brect.tl(), brect.br(), new Scalar(128, 128, 0), 2, 8, 0);
+                        //}
+                        rectangle(cont, rectA.tl(), rectA.br(), new Scalar(0, 255, 0), 2, 8, 0);
+                        rectangle(cont, rectB.tl(), rectB.br(), new Scalar(0, 255, 0), 2, 8, 0);
 
                         // Draw the bounding rectangle
                         rectangle(cont, rect.tl(), rect.br(), new Scalar(255, 255, 255), 4, 8, 0);
@@ -333,6 +373,11 @@ public class Main {
                     }
 
                 }
+            } else {
+                robot.Send(rioMillis, false, 0, 0);
+                if (logging) {
+                    System.out.println(String.format("Not tracking."));
+                }
             }
 
             try {
@@ -344,6 +389,7 @@ public class Main {
                 }
             } catch (Exception e) {
             }
+            // long runMillis = System.currentTimeMillis() - loopMillis;
             if (file!=null) { return; }
         }
 
