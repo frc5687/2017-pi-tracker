@@ -66,7 +66,7 @@ public class Main {
         System.out.println(String.format("Images set to %1$b", images));
 
         if (address==null && team!=null) {
-            address =  "10.56.87.2";// String.format("roboRIO-%1$s-FRC.local", team);
+            address =  String.format("roboRIO-%1$s-FRC.local", team);
         }
         System.out.println(String.format("Address set to %1$s", address));
 
@@ -99,10 +99,10 @@ public class Main {
             System.out.println("Camera connected!");
         }
 
-        if (!camera.set(CV_CAP_PROP_FRAME_WIDTH, 640)){
+        if (!camera.set(CV_CAP_PROP_FRAME_WIDTH, 320)){
             System.out.println("Unable to set frame width!");
         }
-        if (!camera.set(CV_CAP_PROP_FRAME_HEIGHT, 480)){
+        if (!camera.set(CV_CAP_PROP_FRAME_HEIGHT, 240)){
             System.out.println("Unable to set frame height!");
         }
 
@@ -361,6 +361,11 @@ public class Main {
                         logFrame(prefix, mills, log.toString());
                     }
 
+                }
+            } else {
+                robot.Send(rioMillis, false, 0, 0);
+                if (logging) {
+                    System.out.println(String.format("Not tracking."));
                 }
             }
 
