@@ -202,13 +202,21 @@ public class Main {
         while (true) {
             totalBeginTime = System.currentTimeMillis();
 
-            if (System.currentTimeMillis()>= beginSecondTime + 1000) {
-                System.out.println("Total Cycle Time: " + (timeTotal / count));
-                System.out.println("Capture Frame Time: " + (captureTimeTotal / count));
-                System.out.println("HLS Conversion Time: " + (hlsConversionTimeTotal / count));
-                System.out.println("HLS Filtering Time: " + (hlsFilterTimeTotal / count));
-                System.out.println("Contour Time: " + (contourTimeTotal / count));
-                System.out.println("Contour Filtering: " + (contourFilterTimeTotal / count));
+            System.out.println("Beginning cycle; time = " + (System.currentTimeMillis() - beginSecondTime));
+            if (System.currentTimeMillis() >= beginSecondTime + 1000) {
+                System.out.println();
+                if (count > 0) {
+                    System.out.println("Cycles Per Second: " + count);
+                    System.out.println("Total Cycle Time: " + (timeTotal / count));
+                    System.out.println("Capture Frame Time: " + (captureTimeTotal / count));
+                    System.out.println("HLS Conversion Time: " + (hlsConversionTimeTotal / count));
+                    System.out.println("HLS Filtering Time: " + (hlsFilterTimeTotal / count));
+                    System.out.println("Contour Time: " + (contourTimeTotal / count));
+                    System.out.println("Contour Filtering: " + (contourFilterTimeTotal / count));
+                } else {
+                    System.out.println("No cycles occurred in the previous second");
+                }
+                System.out.println();
 
                 timeTotal = 0;
                 hlsConversionTimeTotal = 0;
@@ -230,9 +238,9 @@ public class Main {
                 robot.Send(0, false, 0, 0);
             }
 
-            individualBeginTime = System.currentTimeMillis();
-
-            if (file!=null || robot.isRinglighton()) {
+//            if (file!=null || robot.isRinglighton()) {
+            if(file!=null || true) {
+                individualBeginTime = System.currentTimeMillis();
 
                 // Capture a frame and write to disk
                 if (file==null) {
@@ -423,7 +431,7 @@ public class Main {
             } catch (Exception e) {
             }
             // long runMillis = System.currentTimeMillis() - loopMillis;
-            if (file!=null) { return; }
+//            if (file!=null) { return; }
 
             count ++;
             timeTotal += System.currentTimeMillis() - totalBeginTime;
