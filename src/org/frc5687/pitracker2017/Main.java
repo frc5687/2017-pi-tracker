@@ -184,6 +184,17 @@ public class Main {
         MatOfInt maxCompressionParam = new MatOfInt(Imgcodecs.CV_IMWRITE_PNG_COMPRESSION, 8);
         ContourComparator comparator = new ContourComparator();
 
+        // time counting
+        long totalBeginTime = 0;
+        long individualBeginTIme = 0;
+        long timeTotal = 0;
+        long captureTimeTotal = 0;
+        long hlsTimeTotal = 0;
+        long contourTimeTotal = 0;
+        long mathTimeTotal = 0;
+        long logTimeTotal = 0;
+        int count;
+
         while (true) {
             StringBuilder log = new StringBuilder();
             long mills = Instant.now().toEpochMilli() - startMills;
