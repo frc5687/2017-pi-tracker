@@ -2,6 +2,7 @@ package org.frc5687.pitracker2017;
 
 
 import com.sun.javafx.font.directwrite.RECT;
+import com.sun.prism.paint.Stop;
 import org.opencv.core.*;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
@@ -15,6 +16,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.Timer;
 
 import static org.opencv.imgproc.Imgproc.circle;
 import static org.opencv.imgproc.Imgproc.rectangle;
@@ -43,8 +45,10 @@ public class Main {
     static String team = "5687";
     static String address = null;
     static boolean logging = false;
-    static boolean images = false;
+    static int images = 0;
     static String file = null;
+
+    static boolean debug = false;
 
     public static void main(String[] args) {
         int rX = 0;
@@ -64,6 +68,7 @@ public class Main {
         }
         System.out.println(String.format("Logging set to %1$b", logging));
         System.out.println(String.format("Images set to %1$b", images));
+        System.out.println(String.format("Debug set to %1$b", debug));
 
         if (address==null && team!=null) {
             address =  String.format("roboRIO-%1$s-FRC.local", team);
@@ -117,7 +122,7 @@ public class Main {
         String prefix = "./";
 
         // Setup the image logging folder
-        if (images) {
+        if (images>0) {
             while (true) {
                 prefix = "/home/pi/images/" + folderNumber;
                 // prefix = "C:\\Users\\Ben Bernard\\Documents\\FRC\\FRC 2017\\workspace\\images\\Good\\";
@@ -185,64 +190,34 @@ public class Main {
         ContourComparator comparator = new ContourComparator();
 
         // time counting
-        long beginSecondTime;
-        long totalBeginTime;
-        long individualBeginTime;
-        long timeTotal = 0;
-        long captureTimeTotal = 0;
-        long hlsConversionTimeTotal = 0;
-        long hlsFilterTimeTotal = 0;
-        long contourTimeTotal = 0;
-        long contourFilterTimeTotal = 0;
         int count;
 
-        beginSecondTime = System.currentTimeMillis();
+        Stopwatch loopTimer = new Stopwatch("Loop");
+        Stopwatch captureTimer = new Stopwatch("Capture Frame");
+        Stopwatch conversionTimer = new Stopwatch("Conversion");
+        Stopwatch filterTimer = new Stopwatch("HLS Filter");
+        Stopwatch contourTimer = new Stopwatch("Contour");
+        Stopwatch targetTimer = new Stopwatch("Target");
+        Stopwatch imageLoggingTimer = new Stopwatch("Image Logging");
+
         count = 0;
 
         while (true) {
-            totalBeginTime = System.currentTimeMillis();
-
-            System.out.println("Beginning cycle; time = " + (System.currentTimeMillis() - beginSecondTime));
-            if (System.currentTimeMillis() >= beginSecondTime + 1000) {
-                System.out.println();
-                if (count > 0) {
-                    System.out.println("Cycles Per Second: " + count);
-                    System.out.println("Total Cycle Time: " + (timeTotal / count));
-                    System.out.println("Capture Frame Time: " + (captureTimeTotal / count));
-                    System.out.println("HLS Conversion Time: " + (hlsConversionTimeTotal / count));
-                    System.out.println("HLS Filtering Time: " + (hlsFilterTimeTotal / count));
-                    System.out.println("Contour Time: " + (contourTimeTotal / count));
-                    System.out.println("Contour Filtering: " + (contourFilterTimeTotal / count));
-                } else {
-                    System.out.println("No cycles occurred in the previous second");
-                }
-                System.out.println();
-
-                timeTotal = 0;
-                hlsConversionTimeTotal = 0;
-                captureTimeTotal = 0;
-                hlsFilterTimeTotal = 0;
-                hlsConversionTimeTotal = 0;
-                contourTimeTotal = 0;
-                contourFilterTimeTotal = 0;
-                count = 0;
-
-                beginSecondTime = System.currentTimeMillis();
-            }
+            boolean logImage = images>0 && (count % images==0);
+            loopTimer.start();
 
             StringBuilder log = new StringBuilder();
             long loopMillis = System.currentTimeMillis();
             long mills = loopMillis - startMills;
             long rioMillis = 0;
             rioMillis = robot.getRobotTimestamp();
-            if (rioMillis==0) {
+            if (rioMillis==0 && !debug) {
                 // Keep trying to contact the robot...
                 robot.Send(0, false, 0, 0);
             }
 
-//            if (file!=null || robot.isRinglighton()) {
-            if(file!=null || true) {
-                individualBeginTime = System.currentTimeMillis();
+            if (debug || file!=null || robot.isRinglighton()) {
+                captureTimer.start();
 
                 // Capture a frame and write to disk
                 if (file==null) {
@@ -251,7 +226,8 @@ public class Main {
                     frame = Imgcodecs.imread(file);
                 }
 
-                captureTimeTotal += System.currentTimeMillis() - individualBeginTime;
+                captureTimer.stop();
+
 
                 if (rX != frame.width()) {
                     rX = frame.width();
@@ -264,8 +240,10 @@ public class Main {
                     first = true;  // reset first because the frame size changed and we need to reallocate mats
                 }
 
-                if (images) {
+                if (logImage) {
+                    imageLoggingTimer.start();
                     Imgcodecs.imwrite(prefix + "a_bgr_" + mills + ".png", frame, minCompressionParam);
+                    imageLoggingTimer.stop();
                 }
 
                 if (first) {
@@ -275,36 +253,40 @@ public class Main {
                     first = false;
                 }
 
-                individualBeginTime = System.currentTimeMillis();
 
+                conversionTimer.start();
                 // Convert to HLS color model
                 Imgproc.cvtColor(frame, hls, Imgproc.COLOR_BGR2HLS);
                 //if (images) {
                 //    Imgcodecs.imwrite(prefix + "b_hls_" + mills + ".png", hls, minCompressionParam);
                 //}
 
-                hlsConversionTimeTotal += System.currentTimeMillis() - individualBeginTime;
-                individualBeginTime = System.currentTimeMillis();
+                conversionTimer.stop();
+
+                filterTimer.start();
 
                 // Filter using HLS lower and upper range
                 Scalar lower = new Scalar(lowerH, lowerL, lowerS, 0);
                 Scalar upper = new Scalar(upperH, upperL, upperS, 0);
 
                 Core.inRange(hls, lower, upper, filtered);
-                if (images) {
+                filterTimer.stop();
+
+                if (logImage) {
+                    imageLoggingTimer.start();
                     Imgcodecs.imwrite(prefix + "c_flt_" + mills + ".png", filtered, minCompressionParam);
+                    imageLoggingTimer.stop();
                 }
 
-                hlsFilterTimeTotal += System.currentTimeMillis() - individualBeginTime;
-                individualBeginTime = System.currentTimeMillis();
+                contourTimer.start();
 
                 // Find the contours...
                 List<MatOfPoint> contours = new ArrayList<MatOfPoint>();
                 Imgproc.findContours(filtered, contours, cont, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
 
-                contourTimeTotal += System.currentTimeMillis() - individualBeginTime;
-                individualBeginTime = System.currentTimeMillis();
+                contourTimer.stop();
 
+                targetTimer.start();
                 int cmax = contours.size();
                 Rect rectA = null;
                 Rect rectB = null;
@@ -349,7 +331,7 @@ public class Main {
                     }
                 }
 
-                contourFilterTimeTotal += System.currentTimeMillis() - individualBeginTime;
+                targetTimer.stop();
 
                 if (rectB!=null) {
                     // And find the bounding rectangle for the two largest...
@@ -362,7 +344,9 @@ public class Main {
                     final double cx = vcx - (rX / 2);
                     final double cy = -1 * (vcy - (rY / 2));
 
-                    if (images) {
+                    if (logImage) {
+                        imageLoggingTimer.start();
+
                         // Copy the frame to the cont mat
                         frame.copyTo(cont);
 
@@ -383,6 +367,7 @@ public class Main {
 
                         // Write it to the card
                         Imgcodecs.imwrite(prefix + "d_con_" + mills + ".png", cont, minCompressionParam);
+                        imageLoggingTimer.stop();
 
                     }
 
@@ -409,7 +394,7 @@ public class Main {
                         System.out.println(String.format("cx=%1$f, cy=%2$f, offsetAngle=%3$f, distance=%4$f", cx, cy, offsetAngle, distance));
                     }
 
-                    if (images) {
+                    if (logImage) {
                         logFrame(prefix, mills, width, height, cx, cy, offsetAngle, distance);
                     }
 
@@ -419,8 +404,10 @@ public class Main {
                         System.out.println(String.format("Target absent."));
                     }
 
-                    if (images) {
+                    if (logImage) {
+                        imageLoggingTimer.start();
                         logFrame(prefix, mills, log.toString());
+                        imageLoggingTimer.stop();
                     }
 
                 }
@@ -434,7 +421,7 @@ public class Main {
             try {
                 // Make sure that this has taken AT LEAST 20 milliseconds.
                 // If not, sleep until 20ms have passed
-                long w = (Instant.now().toEpochMilli() - mills);
+                long w = System.currentTimeMillis() - loopMillis;
                 if (w < 20) {
                     Thread.sleep(20 - w);
                 }
@@ -444,8 +431,20 @@ public class Main {
 //            if (file!=null) { return; }
 
             count ++;
-            timeTotal += System.currentTimeMillis() - totalBeginTime;
+            loopTimer.stop();
+            if (logging && count % 100 == 0) {
+                System.out.println("Cycles Per Second: " + count / (loopTimer.elapsed() / 1000));
+                System.out.println("Mean Cycle Time: " + (loopTimer.elapsed() / count));
+                System.out.println("Mean Capture Time: " + (captureTimer.elapsed() / count));
+                System.out.println("Mean Conversion Time: " + (conversionTimer.elapsed() / count));
+                System.out.println("Mean Filtering Time: " + (filterTimer.elapsed() / count));
+                System.out.println("Mean Contour Detection Time: " + (contourTimer.elapsed() / count));
+                System.out.println("Mean Contour Filtering Time: " + (targetTimer.elapsed() / count));
+                System.out.println("File Logging: " + (imageLoggingTimer.elapsed() / count));
+            }
+
         }
+
 
 
     }
@@ -497,7 +496,16 @@ public class Main {
                     case "images":
                     case "i":
                         try {
-                            images = a[1].equals("on") || a[1].equals("yes") || a[1].equals("true");
+                            images = Integer.parseInt(a[1]);;
+                        } catch (Exception e) {
+                            images = 0;
+                            e.printStackTrace();
+                        }
+                        break;
+                    case "debug":
+                    case "d":
+                        try {
+                            debug = a[1].equals("on") || a[1].equals("yes") || a[1].equals("true");
                         } catch (Exception e) {
                             e.printStackTrace();
                         }
