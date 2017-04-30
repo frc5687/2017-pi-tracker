@@ -48,6 +48,9 @@ public class Main {
     static int images = 0;
     static String file = null;
 
+    static int minArea = 20;
+    static int maxRatio = 6;
+
     static boolean debug = false;
 
     public static void main(String[] args) {
@@ -176,7 +179,6 @@ public class Main {
         int upperS = 255;
 */
 
-        int minArea = 20;
 
 
         boolean first=true;
@@ -300,17 +302,17 @@ public class Main {
                     int width = rect.width;
                     int height = rect.height;
 
-                    if (height > width * 3) {
+                    if (height > width * maxRatio) {
                         continue; // Too tall!
                     }
-                    if (height < width * 1.5) {
+                    if (width > height * maxRatio) {
                         continue; // Too short
                     }
 
                     int size = width * height;
 
 
-                    if (size < 50) {
+                    if (size < minArea) {
                         continue; // Too small!
                     }
 
@@ -523,6 +525,22 @@ public class Main {
                     case "f":
                         try {
                             file = a[1];
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                        break;
+                    case "minarea":
+                    case "ma":
+                        try {
+                            minArea = Integer.parseInt(a[1]);;
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                        break;
+                    case "maxratio":
+                    case "mr":
+                        try {
+                            maxRatio = Integer.parseInt(a[1]);;
                         } catch (Exception e) {
                             e.printStackTrace();
                         }
